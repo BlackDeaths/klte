@@ -1,6 +1,6 @@
 /*
    Copyright (c) 2016, The Linux Foundation. All rights reserved.
-   Copyright (c) 2017-2018, The LineageOS Project. All rights reserved.
+   Copyright (c) 2017-2019, The LineageOS Project. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
    modification, are permitted provided that the following conditions are
@@ -28,39 +28,53 @@
    IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdlib.h>
+#include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <android-base/logging.h>
 #include <android-base/properties.h>
 
+#define _REALLY_INCLUDE_SYS__SYSTEM_PROPERTIES_H_
+#include <sys/_system_properties.h>
+
 #include "property_service.h"
 #include "vendor_init.h"
-
-#include "init_msm8974.h"
 
 using android::base::GetProperty;
 using android::init::property_set;
 
-void set_rild_libpath(char const *variant)
+void property_override(char const prop[], char const value[])
 {
-    std::string libpath("/system/vendor/lib/libsec-ril.");
-    libpath += variant;
-    libpath += ".so";
+    prop_info *pi;
 
-    property_override("rild.libpath", libpath.c_str());
+    pi = (prop_info*) __system_property_find(prop);
+    if (pi)
+        __system_property_update(pi, value, strlen(value));
+    else
+        __system_property_add(prop, strlen(prop), value, strlen(value));
+}
+
+void property_override_dual(char const system_prop[],
+        char const vendor_prop[], char const value[])
+{
+    property_override(system_prop, value);
+    property_override(vendor_prop, value);
 }
 
 void cdma_properties(char const *operator_alpha,
         char const *operator_numeric,
         char const *default_network,
-        char const *rild_lib_variant)
+        char const *cdma_sub)
 {
     /* Dynamic CDMA Properties */
     property_set("ro.cdma.home.operator.alpha", operator_alpha);
     property_set("ro.cdma.home.operator.numeric", operator_numeric);
     property_set("ro.telephony.default_network", default_network);
-    set_rild_libpath(rild_lib_variant);
+   
 
     /* Static CDMA Properties */
     property_set("ril.subscription.types", "NV,RUIM");
@@ -68,19 +82,14 @@ void cdma_properties(char const *operator_alpha,
     property_set("telephony.lteOnCdmaDevice", "1");
 }
 
-void gsm_properties(char const *rild_lib_variant)
-{
-    set_rild_libpath(rild_lib_variant);
+void gsm_properties()
 
+{
     property_set("ro.telephony.default_network", "9");
     property_set("telephony.lteOnGsmDevice", "1");
 }
 
-void init_target_properties()
-{
-    std::string platform = GetProperty("ro.board.platform", "");
-    if (platform != ANDROID_TARGET)
-        return;
+void vendor_load_properties() {
 
     std::string bootloader = GetProperty("ro.bootloader", "");
 
@@ -90,21 +99,21 @@ void init_target_properties()
         property_override("ro.build.description", "kltetu-user 5.0 LRX21T G900AZTUS3BQD1 release-keys");
         property_override_dual("ro.product.model", "ro.vendor.product.model", "SM-G900AZ");
         property_override_dual("ro.product.device", "ro.vendor.product.device", "klteaio");
-        gsm_properties("gsm");
+        gsm_properties();
     } else if (bootloader.find("G900F") == 0) {
         /* kltexx */
         property_override_dual("ro.build.fingerprint", "ro.vendor.build.fingerprint", "samsung/kltexx/klte:6.0.1/MMB29M/G900FXXU1CRH1:user/release-keys");
         property_override("ro.build.description", "kltexx-user 6.0.1 MMB29M G900FXXU1CRH1 release-keys");
         property_override_dual("ro.product.model", "ro.vendor.product.model", "SM-G900F");
         property_override_dual("ro.product.device", "ro.vendor.product.device", "klte");
-        gsm_properties("gsm");
+        gsm_properties();
     } else if (bootloader.find("G900M") == 0) {
         /* klteub */
         property_override_dual("ro.build.fingerprint", "ro.vendor.build.fingerprint", "samsung/klteub/klte:6.0.1/MMB29M/G900MUBS1CQD5:user/release-keys");
         property_override("ro.build.description", "klteub-user 6.0.1 MMB29M G900MUBS1CQD5 release-keys");
         property_override_dual("ro.product.model", "ro.vendor.product.model", "SM-G900M");
         property_override_dual("ro.product.device", "ro.vendor.product.device", "klte");
-        gsm_properties("gsm");
+        gsm_properties();
     } else if (bootloader.find("G900R4") == 0) {
         /* klteusc */
         property_override_dual("ro.build.fingerprint", "ro.vendor.build.fingerprint", "samsung/klteusc/klteusc:6.0.1/MMB29M/G900R4VXS2CQC2:user/release-keys");
@@ -125,7 +134,7 @@ void init_target_properties()
         property_override("ro.build.description", "kltetmo-user 6.0.1 MMB29M G900TUVU1GQC2 release-keys");
         property_override_dual("ro.product.model", "ro.vendor.product.model", "SM-G900T");
         property_override_dual("ro.product.device", "ro.vendor.product.device", "kltetmo");
-        gsm_properties("gsm");
+        gsm_properties();
     } else if (bootloader.find("G900V") == 0) {
         /* kltevzw - SM-G900V - Verizon */
         property_override_dual("ro.build.fingerprint", "ro.vendor.build.fingerprint", "Verizon/kltevzw/kltevzw:6.0.1/MMB29M/G900VVRU2DQL1:user/release-keys");
@@ -140,7 +149,7 @@ void init_target_properties()
         property_override("ro.build.description", "kltevl-user 6.0.1 MMB29M G900W8VLU1DQB2 release-keys");
         property_override_dual("ro.product.model", "ro.vendor.product.model", "SM-G900W8");
         property_override_dual("ro.product.device", "ro.vendor.product.device", "kltecan");
-        gsm_properties("gsm");
+        gsm_properties();
     } else if (bootloader.find("S902L") == 0) {
         /* kltetfnvzw - SM-S902L - TracFone Verizon MVNO */
         property_override_dual("ro.build.fingerprint", "ro.vendor.build.fingerprint", "samsung/kltetfnvzw/kltetfnvzw:4.4.2/KOT49H/S902LUDUAOD3:user/release-keys");
@@ -150,7 +159,7 @@ void init_target_properties()
         property_set("ro.telephony.get_imsi_from_sim", "true");
         cdma_properties("TracFone", "310000", "10", "vzw");
     } else {
-        gsm_properties("gsm");
+        gsm_properties();
     }
 
     std::string device = GetProperty("ro.product.device", "");
