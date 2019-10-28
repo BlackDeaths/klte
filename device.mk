@@ -26,13 +26,6 @@ DEVICE_PACKAGE_OVERLAYS += $(LOCAL_PATH)/overlay
 # Fingerprint
 $(call inherit-product, device/samsung/klte-common/fingerprint/product.mk)
 
-# Loki
-PRODUCT_PACKAGES += \
-    loki_tool \
-    loki.sh \
-    loki_bootloaders \
-    recovery-transform.sh
-    
 # NFC
 $(call inherit-product, device/samsung/klte-common/nfc/pn547/product.mk)
 
